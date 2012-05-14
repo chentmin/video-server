@@ -17,7 +17,7 @@ import (
 
 var (
 	dir           = http.Dir("./")
-	handler       = http.StripPrefix("/files/", http.FileServer(dir))
+	fileHandler   = http.StripPrefix("/files/", logPanic(http.FileServer(dir)))
 	videoTemplate = template.Must(template.New("video").Parse(videoTemplateString))
 	audioTemplate = template.Must(template.New("audio").Parse(audioTemplateString))
 	indexTemplate = template.Must(template.New("index").Parse(indexTemplateString))
@@ -25,12 +25,12 @@ var (
 )
 
 type videoInfo struct {
-	Name     *string
+	Name     string
 	BaseName string
 }
 
 type audioInfo struct {
-	Name     *string
+	Name     string
 	BaseName string
 }
 
@@ -59,7 +59,7 @@ func logPanic(function handlerFunc) handlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		defer func() {
 			if x := recover(); x != nil {
-				log.Printf("[%v] caught panic: %v", request.RemoteAddr, x)
+				log.Printf("[%v] caught panic: %v\n", request.RemoteAddr, x)
 			}
 		}()
 		function(writer, request)
@@ -79,7 +79,7 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 	suffix := filepath.Ext(toWatch)
 
 	if suffix == ".mp4" || suffix == ".m4v" || suffix == ".mp3" || suffix == ".m4a" {
-		handler.ServeHTTP(w, r)
+		fileHandler.ServeHTTP(w, r)
 	} else {
 		http.NotFound(w, r)
 		return
@@ -103,21 +103,21 @@ func watchHandler(w http.ResponseWriter, r *http.Request) {
 
 	f.Close()
 
-	info := &videoInfo{Name: &toWatch, BaseName: filepath.Base(toWatch)}
+	info := &videoInfo{Name: toWatch, BaseName: filepath.Base(toWatch)}
 
 	videoTemplate.Execute(w, info)
 }
 
 func listenHandler(w http.ResponseWriter, r *http.Request) {
 	// get the actual listen page
-	toWatch, err := url.QueryUnescape(r.URL.RequestURI())
-	if err != nil || len(toWatch) <= 1 {
+	toListen, err := url.QueryUnescape(r.URL.RequestURI())
+	if err != nil || len(toListen) <= 1 {
 		http.Redirect(w, r, "/", http.StatusMovedPermanently)
 		return
 	}
 
 	// make sure the file really exists
-	f, err := dir.Open(toWatch)
+	f, err := dir.Open(toListen)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -125,7 +125,7 @@ func listenHandler(w http.ResponseWriter, r *http.Request) {
 
 	f.Close()
 
-	info := &audioInfo{Name: &toWatch, BaseName: filepath.Base(toWatch)}
+	info := &audioInfo{Name: toListen, BaseName: filepath.Base(toListen)}
 
 	audioTemplate.Execute(w, info)
 }
