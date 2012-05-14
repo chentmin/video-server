@@ -17,7 +17,7 @@ import (
 
 var (
 	dir           = http.Dir("./")
-	fileHandler   = http.StripPrefix("/files/", logPanic(http.FileServer(dir)))
+	fileHandler   = http.StripPrefix("/files/", http.FileServer(dir)) // only called by a panic-handled function
 	videoTemplate = template.Must(template.New("video").Parse(videoTemplateString))
 	audioTemplate = template.Must(template.New("audio").Parse(audioTemplateString))
 	indexTemplate = template.Must(template.New("index").Parse(indexTemplateString))
@@ -136,9 +136,9 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		suffix := filepath.Ext(info.Name())
 		if suffix == ".mp4" || suffix == ".m4v" {
-			videos = append(videos, &videoInfo{Name: &path, BaseName: filepath.Base(path)})
+			videos = append(videos, &videoInfo{Name: path, BaseName: filepath.Base(path)})
 		} else if suffix == ".mp3" || suffix == ".m4a" {
-			musics = append(musics, &audioInfo{Name: &path, BaseName: filepath.Base(path)})
+			musics = append(musics, &audioInfo{Name: path, BaseName: filepath.Base(path)})
 		}
 		return nil
 	}
